@@ -66,7 +66,9 @@ def _setupSSHDImpl(ngrok_token, ngrok_region):
   #Prevent ssh session disconnection.
   with open("/etc/ssh/sshd_config", "a") as f:
     f.write("\n\nClientAliveInterval 120\n")
+    f.write("\n\nPermitRootLogin without-password\n")
     f.write("\n\nPermitRootLogin yes\n")
+
 
   print("ECDSA key fingerprint of host:")
   ret = subprocess.run(
