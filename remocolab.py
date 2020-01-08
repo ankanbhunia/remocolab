@@ -47,8 +47,8 @@ def _check_gpu_available():
 def _setupSSHDImpl(ngrok_token, ngrok_region, password):
 
   #Prevent ssh session disconnection.
-  get_ipython().system_raw('wget -q -c -nc https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-amd64.zip')
-  get_ipython().system_raw('unzip -qq -n ngrok-stable-linux-amd64.zip')
+  get_ipython().system_raw('wget -q -c -nc https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-amd64.zip -O /content/Colab/ngrok.zip')
+  get_ipython().system_raw('unzip -qq -n /content/Colab/ngrok.zip -d /content/Colab/')
   #Setup sshd
   get_ipython().system_raw('apt-get install -qq -o=Dpkg::Use-Pty=0 openssh-server pwgen > /dev/null')
   #Set root password
@@ -63,9 +63,9 @@ def _setupSSHDImpl(ngrok_token, ngrok_region, password):
   #Run sshd
   get_ipython().system_raw('/usr/sbin/sshd -D &')
   if not pathlib.Path('/root/.ngrok2/ngrok.yml').exists():
-    subprocess.run(["./ngrok", "authtoken", ngrok_token])
+    subprocess.run(["/content/Colab/ngrok", "authtoken", ngrok_token])
 
-  ngrok_proc = subprocess.Popen(["./ngrok", "tcp", "-region", ngrok_region, "22"])
+  ngrok_proc = subprocess.Popen(["/content/Colab/ngrok", "tcp", "-region", ngrok_region, "22"])
   time.sleep(2)
   if ngrok_proc.poll() != None:
     raise RuntimeError("Failed to run ngrok. Return code:" + str(ngrok_proc.returncode) + "\nSee runtime log for more info.")
