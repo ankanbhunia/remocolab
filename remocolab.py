@@ -2,6 +2,9 @@ import apt, apt.debfile
 import pathlib, stat, shutil, urllib.request, subprocess, getpass, time
 import secrets, json, re
 import IPython.utils.io
+import os, ssl
+if (not os.environ.get('PYTHONHTTPSVERIFY', '') and getattr(ssl, '_create_unverified_context', None)):
+  ssl._create_default_https_context = ssl._create_unverified_context
 
 def _installPkg(cache, name):
   pkg = cache[name]
@@ -42,59 +45,24 @@ def _check_gpu_available():
 
   return IPython.utils.io.ask_yes_no("Do you want to continue? [y/n]")
 
-def _setupSSHDImpl(ngrok_token, ngrok_region):
-  #apt-get update
-  #apt-get upgrade
-  cache = apt.Cache()
-  cache.update()
-  cache.open(None)
-  cache.upgrade()
-  cache.commit()
-
-  subprocess.run(["unminimize"], input = "y\n", check = True, universal_newlines = True)
-
-  _installPkg(cache, "openssh-server")
-  cache.commit()
-
-  #Reset host keys
-  for i in pathlib.Path("/etc/ssh").glob("ssh_host_*_key"):
-    i.unlink()
-  subprocess.run(
-                  ["ssh-keygen", "-A"],
-                  check = True)
+def _setupSSHDImpl(ngrok_token, ngrok_region, password):
 
   #Prevent ssh session disconnection.
-  with open("/etc/ssh/sshd_config", "a") as f:
-    f.write("\n\nClientAliveInterval 120\n")
-    f.write("\n\nPermitRootLogin without-password\n")
-    f.write("\n\nPermitRootLogin yes\n")
-    f.write("\n\nPasswordAuthentication yes\n")
+  get_ipython().system_raw('wget -q -c -nc https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-amd64.zip')
+  get_ipython().system_raw('unzip -qq -n ngrok-stable-linux-amd64.zip')
+  #Setup sshd
+  get_ipython().system_raw('apt-get install -qq -o=Dpkg::Use-Pty=0 openssh-server pwgen > /dev/null')
+  #Set root password
   
+  get_ipython().system_raw('echo root:$password | chpasswd')
+  get_ipython().system_raw('mkdir -p /var/run/sshd')
+  get_ipython().system_raw('echo "PermitRootLogin yes" >> /etc/ssh/sshd_config')
+  get_ipython().system_raw('echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config')
+  get_ipython().system_raw('echo "LD_LIBRARY_PATH=/usr/lib64-nvidia" >> /root/.bashrc')
+  get_ipython().system_raw('echo "export LD_LIBRARY_PATH" >> /root/.bashrc')
 
-  print("ECDSA key fingerprint of host:")
-  ret = subprocess.run(
-                ["ssh-keygen", "-lvf", "/etc/ssh/ssh_host_ecdsa_key.pub"],
-                stdout = subprocess.PIPE,
-                check = True,
-                universal_newlines = True)
-  print(ret.stdout)
-
-  _download("https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-amd64.zip", "ngrok.zip")
-  shutil.unpack_archive("ngrok.zip")
-  pathlib.Path("ngrok").chmod(stat.S_IXUSR)
-
-  root_password = '1234'
-  user_password = '1234'
-  
-  user_name = "colab"
-
-  subprocess.run(["useradd", "-s", "/bin/bash", "-m", user_name])
-  subprocess.run(["adduser", user_name, "sudo"], check = True)
-
-  subprocess.run(["chpasswd"], input = f"root:{root_password}", universal_newlines = True)
-  subprocess.run(["chpasswd"], input = f"{user_name}:{user_password}", universal_newlines = True)
-  subprocess.run(["service", "ssh", "restart"])
-  subprocess.Popen("echo root:$root_password | chpasswd")
+  #Run sshd
+  get_ipython().system_raw('/usr/sbin/sshd -D &')
   if not pathlib.Path('/root/.ngrok2/ngrok.yml').exists():
     subprocess.run(["./ngrok", "authtoken", ngrok_token])
 
@@ -113,22 +81,19 @@ def _setupSSHDImpl(ngrok_token, ngrok_region):
   ssh_common_options =  "-o UserKnownHostsFile=/dev/null -o VisualHostKey=yes"
   print("---")
   print("Command to connect to the ssh server:")
-  print("#"*24)
-  print(f"ssh {ssh_common_options} -p {port} {user_name}@{hostname}")
-  print("#"*24)
+
+  print(f"ssh {ssh_common_options} -p {port} root@{hostname}")
+ 
   print("---")
   print("If you use VNC:")
-  print("#"*24)
-  print(f"ssh {ssh_common_options} -L 5901:localhost:5901 -p {port} {user_name}@{hostname}")
-  print("#"*24)
+ 
+  print(f"ssh {ssh_common_options} -L 5901:localhost:5901 -p {port} root@{hostname}")
+  print("---")
 
-def setupSSHD(ngrok_token = None, ngrok_region = None, check_gpu_available = False):
+def setupSSHD(ngrok_token = None, ngrok_region = None, password = None, check_gpu_available = False):
   if check_gpu_available and not _check_gpu_available():
     return False
 
-  print("---")
-  print("Copy&paste your tunnel authtoken from https://dashboard.ngrok.com/auth")
-  print("(You need to sign up for ngrok and login,)")
   #Set your ngrok Authtoken.
   #ngrok_token = getpass.getpass()
 
@@ -143,9 +108,10 @@ def setupSSHD(ngrok_token = None, ngrok_region = None, check_gpu_available = Fal
     print("in - India (Mumbai)")
     ngrok_region = region = input()
 
-  _setupSSHDImpl(ngrok_token, ngrok_region)
+  _setupSSHDImpl(ngrok_token, ngrok_region, password)
   return True
 
+def _setup_nvidia_gl():
   # Install TESLA DRIVER FOR LINUX X64.
   # Kernel module in this driver is already loaded and cannot be neither removed nor updated.
   # (nvidia, nvidia_uvm, nvidia_drm. See dmesg)
@@ -236,7 +202,6 @@ no-x11-tcp-connections
   vncrun_py = pathlib.Path("vncrun.py")
   vncrun_py.write_text("""\
 import subprocess, secrets, pathlib
-
 vnc_passwd = secrets.token_urlsafe()[:8]
 vnc_viewonly_passwd = secrets.token_urlsafe()[:8]
 print("#"*24)
@@ -257,17 +222,12 @@ vnc_user_passwd.chmod(0o600)
 subprocess.run(
   ["/opt/TurboVNC/bin/vncserver"]
 )
-
 #Disable screensaver because no one would want it.
 (pathlib.Path.home() / ".xscreensaver").write_text("mode: off\\n")
 """)
-  r = subprocess.run(
-                    ["su", "-c", "python3 vncrun.py", "colab"],
-                    check = True,
-                    stdout = subprocess.PIPE,
-                    universal_newlines = True)
-  print(r.stdout)
+  print(get_ipython().getoutput('python3 vncrun.py')[1:3])
+ 
 
-def setupVNC(ngrok_token = None, ngrok_region = None):
-  if setupSSHD(ngrok_token, ngrok_region, True):
+def setupVNC(ngrok_token = None, ngrok_region = None, password = None):
+  if setupSSHD(ngrok_token, ngrok_region,password, True):
     _setupVNC()
