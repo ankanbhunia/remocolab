@@ -8,10 +8,9 @@ if (not os.environ.get('PYTHONHTTPSVERIFY', '') and getattr(ssl, '_create_unveri
 
 def _installPkg(cache, name):
   pkg = cache[name]
-  if pkg.is_installed:
+  if not pkg.is_installed:
     
-  else:
-    
+ 
     pkg.mark_install()
 
 def _installPkgs(cache, *args):
