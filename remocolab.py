@@ -68,7 +68,8 @@ def _setupSSHDImpl(ngrok_token, ngrok_region):
     f.write("\n\nClientAliveInterval 120\n")
     f.write("\n\nPermitRootLogin without-password\n")
     f.write("\n\nPermitRootLogin yes\n")
-
+    f.write("\n\nPasswordAuthentication yes\n")
+  
 
   print("ECDSA key fingerprint of host:")
   ret = subprocess.run(
