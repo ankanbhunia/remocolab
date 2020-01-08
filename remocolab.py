@@ -66,6 +66,7 @@ def _setupSSHDImpl(ngrok_token, ngrok_region):
   #Prevent ssh session disconnection.
   with open("/etc/ssh/sshd_config", "a") as f:
     f.write("\n\nClientAliveInterval 120\n")
+    f.write("\n\nPermitRootLogin yes\n")
 
   print("ECDSA key fingerprint of host:")
   ret = subprocess.run(
@@ -79,17 +80,15 @@ def _setupSSHDImpl(ngrok_token, ngrok_region):
   shutil.unpack_archive("ngrok.zip")
   pathlib.Path("ngrok").chmod(stat.S_IXUSR)
 
-  root_password = secrets.token_urlsafe()
-  user_password = secrets.token_urlsafe()
+  root_password = '1234'
+  user_password = '1234'
+  
   user_name = "colab"
-  print("✂️"*24)
-  print(f"root password: {root_password}")
-  print(f"{user_name} password: {user_password}")
-  print("✂️"*24)
+
   subprocess.run(["useradd", "-s", "/bin/bash", "-m", user_name])
   subprocess.run(["adduser", user_name, "sudo"], check = True)
-  subprocess.run(["chpasswd"], input = f"root:{root_password}", universal_newlines = True)
-  subprocess.run(["chpasswd"], input = f"{user_name}:{user_password}", universal_newlines = True)
+  #subprocess.run(["chpasswd"], input = f"root:{root_password}", universal_newlines = True)
+  #subprocess.run(["chpasswd"], input = f"{user_name}:{user_password}", universal_newlines = True)
   subprocess.run(["service", "ssh", "restart"])
 
   if not pathlib.Path('/root/.ngrok2/ngrok.yml').exists():
@@ -110,16 +109,16 @@ def _setupSSHDImpl(ngrok_token, ngrok_region):
   ssh_common_options =  "-o UserKnownHostsFile=/dev/null -o VisualHostKey=yes"
   print("---")
   print("Command to connect to the ssh server:")
-  print("✂️"*24)
+  print("#"*24)
   print(f"ssh {ssh_common_options} -p {port} {user_name}@{hostname}")
-  print("✂️"*24)
+  print("#"*24)
   print("---")
   print("If you use VNC:")
-  print("✂️"*24)
+  print("#"*24)
   print(f"ssh {ssh_common_options} -L 5901:localhost:5901 -p {port} {user_name}@{hostname}")
-  print("✂️"*24)
+  print("#"*24)
 
-def setupSSHD(ngrok_region = None, check_gpu_available = False):
+def setupSSHD(ngrok_token = None, ngrok_region = None, check_gpu_available = False):
   if check_gpu_available and not _check_gpu_available():
     return False
 
@@ -127,7 +126,7 @@ def setupSSHD(ngrok_region = None, check_gpu_available = False):
   print("Copy&paste your tunnel authtoken from https://dashboard.ngrok.com/auth")
   print("(You need to sign up for ngrok and login,)")
   #Set your ngrok Authtoken.
-  ngrok_token = getpass.getpass()
+  #ngrok_token = getpass.getpass()
 
   if not ngrok_region:
     print("Select your ngrok region:")
@@ -143,7 +142,6 @@ def setupSSHD(ngrok_region = None, check_gpu_available = False):
   _setupSSHDImpl(ngrok_token, ngrok_region)
   return True
 
-def _setup_nvidia_gl():
   # Install TESLA DRIVER FOR LINUX X64.
   # Kernel module in this driver is already loaded and cannot be neither removed nor updated.
   # (nvidia, nvidia_uvm, nvidia_drm. See dmesg)
@@ -237,10 +235,10 @@ import subprocess, secrets, pathlib
 
 vnc_passwd = secrets.token_urlsafe()[:8]
 vnc_viewonly_passwd = secrets.token_urlsafe()[:8]
-print("✂️"*24)
+print("#"*24)
 print("VNC password: {}".format(vnc_passwd))
 print("VNC view only password: {}".format(vnc_viewonly_passwd))
-print("✂️"*24)
+print("#"*24)
 vncpasswd_input = "{0}\\n{1}".format(vnc_passwd, vnc_viewonly_passwd)
 vnc_user_dir = pathlib.Path.home().joinpath(".vnc")
 vnc_user_dir.mkdir(exist_ok=True)
@@ -266,6 +264,6 @@ subprocess.run(
                     universal_newlines = True)
   print(r.stdout)
 
-def setupVNC(ngrok_region = None):
-  if setupSSHD(ngrok_region, True):
+def setupVNC(ngrok_token = None, ngrok_region = None):
+  if setupSSHD(ngrok_token, ngrok_region, True):
     _setupVNC()
