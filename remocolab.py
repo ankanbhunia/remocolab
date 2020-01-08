@@ -9,9 +9,9 @@ if (not os.environ.get('PYTHONHTTPSVERIFY', '') and getattr(ssl, '_create_unveri
 def _installPkg(cache, name):
   pkg = cache[name]
   if pkg.is_installed:
-    print(f"{name} is already installed")
+    
   else:
-    print(f"Install {name}")
+    
     pkg.mark_install()
 
 def _installPkgs(cache, *args):
@@ -79,16 +79,15 @@ def _setupSSHDImpl(ngrok_token, ngrok_region, password):
   port = m.group(2)
 
   ssh_common_options =  "-o UserKnownHostsFile=/dev/null -o VisualHostKey=yes"
-  print("---")
-  print("Command to connect to the ssh server:")
+  
+  print("(A) SSH server:->> [type the command in your terminal] ")
 
   print(f"ssh {ssh_common_options} -p {port} root@{hostname}")
- 
-  print("---")
-  print("If you use VNC:")
+
+  print("(B) VNC server:->> [Run the command for desktop interface. Then, open TurboVNC viewer and use the following password]")
  
   print(f"ssh {ssh_common_options} -L 5901:localhost:5901 -p {port} root@{hostname}")
-  print("---")
+  
 
 def setupSSHD(ngrok_token = None, ngrok_region = None, password = None, check_gpu_available = False):
   if check_gpu_available and not _check_gpu_available():
@@ -225,7 +224,9 @@ subprocess.run(
 #Disable screensaver because no one would want it.
 (pathlib.Path.home() / ".xscreensaver").write_text("mode: off\\n")
 """)
-  print(get_ipython().getoutput('python3 vncrun.py')[1:3])
+  txt = get_ipython().getoutput('python3 vncrun.py')[1:3]
+  print (txt[0])
+  print (txt[1])
  
 
 def setupVNC(ngrok_token = None, ngrok_region = None, password = None):
