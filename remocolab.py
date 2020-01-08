@@ -123,9 +123,9 @@ def _setup_nvidia_gl():
                   universal_newlines = True)
   nvidia_version = ret.stdout.strip()
   nvidia_url = "https://us.download.nvidia.com/tesla/{0}/NVIDIA-Linux-x86_64-{0}.run".format(nvidia_version)
-  _download(nvidia_url, "nvidia.run")
-  pathlib.Path("nvidia.run").chmod(stat.S_IXUSR)
-  subprocess.run(["./nvidia.run", "--no-kernel-module", "--ui=none"], input = "1\n", check = True, universal_newlines = True)
+  _download(nvidia_url, "/tmp/nvidia.run")
+  pathlib.Path("/tmp/nvidia.run").chmod(stat.S_IXUSR)
+  subprocess.run(["/tmp/nvidia.run", "--no-kernel-module", "--ui=none"], input = "1\n", check = True, universal_newlines = True)
 
   #https://virtualgl.org/Documentation/HeadlessNV
   subprocess.run(["nvidia-xconfig",
@@ -197,7 +197,7 @@ no-x11-tcp-connections
   if gpu_name != None:
     _setup_nvidia_gl()
 
-  vncrun_py = pathlib.Path("vncrun.py")
+  vncrun_py = pathlib.Path("/tmp/vncrun.py")
   vncrun_py.write_text("""\
 import subprocess, secrets, pathlib
 vnc_passwd = secrets.token_urlsafe()[:8]
@@ -223,7 +223,7 @@ subprocess.run(
 #Disable screensaver because no one would want it.
 (pathlib.Path.home() / ".xscreensaver").write_text("mode: off\\n")
 """)
-  txt = get_ipython().getoutput('python3 vncrun.py')[1:3]
+  txt = get_ipython().getoutput('python3 /tmp/vncrun.py')[1:3]
   print (txt[0])
   print (txt[1])
  
