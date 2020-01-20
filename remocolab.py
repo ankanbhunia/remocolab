@@ -76,7 +76,8 @@ def _setupSSHDImpl(ngrok_token, ngrok_region, password):
 
   hostname = m.group(1)
   port = m.group(2)
-
+  print ('PORT:'+port)
+  print ('HOST:'+hostname)
   ssh_common_options =  "-o UserKnownHostsFile=/dev/null -o VisualHostKey=yes"
   
   print("(A) SSH server:->> [type the command in your terminal] ")
