@@ -2,6 +2,33 @@ import apt, apt.debfile
 import pathlib, stat, shutil, urllib.request, subprocess, getpass, time
 import secrets, json, re
 import IPython.utils.io
+from google.colab import output
+from IPython.display import Audio
+from gtts import gTTS 
+  
+# This module is imported so that we can  
+# play the converted audio 
+import os 
+  
+# The text that you want to convert to audio 
+mytext = 'Your machine is ready.'
+  
+# Language in which you want to convert 
+language = 'en'
+  
+# Passing the text and language to the engine,  
+# here we have marked slow=False. Which tells  
+# the module that the converted audio should  
+# have a high speed 
+myobj = gTTS(text=mytext, lang=language, slow=True) 
+  
+# Saving the converted audio in a mp3 file named 
+# welcome  
+myobj.save("/tmp/ready.mp3") 
+  
+# Playing the converted file 
+
+
 import os, ssl
 if (not os.environ.get('PYTHONHTTPSVERIFY', '') and getattr(ssl, '_create_unverified_context', None)):
   ssl._create_default_https_context = ssl._create_unverified_context
@@ -89,6 +116,7 @@ def _setupSSHDImpl(ngrok_token, ngrok_region, password):
   print("(B) VNC server:->> [Run the command for desktop interface. Then, open TurboVNC viewer and use the following password]")
  
   print(f"ssh {ssh_common_options} -L 5901:localhost:5901 -p {port} root@{hostname}")
+  return hostname, port
   
 
 def setupSSHD(ngrok_token = None, ngrok_region = None, password = None, check_gpu_available = False):
@@ -109,8 +137,8 @@ def setupSSHD(ngrok_token = None, ngrok_region = None, password = None, check_gp
     print("in - India (Mumbai)")
     ngrok_region = region = input()
 
-  _setupSSHDImpl(ngrok_token, ngrok_region, password)
-  return True
+  hostname, port = _setupSSHDImpl(ngrok_token, ngrok_region, password)
+  return True, hostname, port
 
 def _setup_nvidia_gl():
   # Install TESLA DRIVER FOR LINUX X64.
@@ -232,5 +260,8 @@ subprocess.run(
  
 
 def setupVNC(ngrok_token = None, ngrok_region = None, password = None):
-  if setupSSHD(ngrok_token, ngrok_region,password, True):
+  isp, hostname, port = setupSSHD(ngrok_token, ngrok_region,password, True)
+  if isp:
+    Audio("/tmp/ready.mp3", autoplay=True) 
     _setupVNC()
+    return hostname, port
